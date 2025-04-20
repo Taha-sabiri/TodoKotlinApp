@@ -8,7 +8,7 @@ import PR_ORANGE
 import PR_PURPLE
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,8 +28,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DateRange
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -37,33 +38,92 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.todolist.R
+import com.example.todolist.data.ItemDataClass
+import com.example.todolist.data.ItemRepository
+import com.example.todolist.ui.ItemViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeView(navController: NavController) {
+fun HomeView(navController: NavController, repository: ItemRepository) {
+
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var titleInput by remember { mutableStateOf("") }
+    val viewModel = remember { ItemViewModel(repository) }
+
+
+    val items by viewModel.allItems.collectAsState(initial = emptyList())
     Scaffold(floatingActionButton = {
         FloatingActionButton(
-            onClick = { /*TODO*/ },
+            onClick = { showBottomSheet = true },
             containerColor = PR_PURPLE,
             elevation = FloatingActionButtonDefaults.elevation(0.dp)
         ) {
             Icon(imageVector = Icons.Outlined.Add, contentDescription = "", tint = Color.White)
         }
     }) { PaddingValues ->
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
+                },
+                sheetState = sheetState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(900.dp)
+            ) {
+                // Sheet content
+                Column(Modifier.padding(20.dp)) {
+
+                    TextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+
+                        value = titleInput,
+                        onValueChange = { item -> titleInput = item },
+                        placeholder = { Text(text = "متن را وارد  کنید ... ") },
+                        label = {
+                            Text(
+                                text = "شرح وظیفه"
+                            )
+                        })
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        onClick = {
+                            viewModel.insert(ItemDataClass(title = titleInput))
+                        }) {
+                        Text("افزودن")
+                    }
+                }
+            }
+        }
         Column(
             modifier = Modifier
                 .padding(PaddingValues)
@@ -89,7 +149,7 @@ fun HomeView(navController: NavController) {
                 ) {
 
                     HeaderSection()
-                    InfoSection()
+                    InfoSection(items)
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(text = "لیست وظایف روزانه")
                     Spacer(modifier = Modifier.height(10.dp))
@@ -99,20 +159,27 @@ fun HomeView(navController: NavController) {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        ItemWidget()
-                        ItemWidget()
-                        ItemWidget()
-                        ItemWidget()
-                        ItemWidget()
-                        ItemWidget()
+                        items.forEachIndexed() { index, item ->
+                            ItemWidget(item.title, item.isCheck , onRemove = {viewModel.delete(item)} , onCheckedChange = { isChecked ->
+                                viewModel.update(item.copy(isCheck = isChecked))
+
+                            })
+                        }
+
+
                         Spacer(modifier = Modifier.height(200.dp))
                     }
 
                 }
-                Image(painterResource(id = R.drawable.gradient), contentDescription = "" , modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .align(Alignment.BottomEnd), contentScale = ContentScale.Crop)
+                Image(
+                    painterResource(id = R.drawable.gradient),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .align(Alignment.BottomEnd),
+                    contentScale = ContentScale.Crop
+                )
 
             }
 
@@ -121,7 +188,12 @@ fun HomeView(navController: NavController) {
 }
 
 @Composable
-private fun ItemWidget() {
+private fun ItemWidget(
+    title: String,
+    check: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    onRemove: () -> Unit
+) {
     Row(
         Modifier
             .background(PR_LIGHT_PURPLE, shape = RoundedCornerShape(10.dp))
@@ -131,7 +203,7 @@ private fun ItemWidget() {
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        Checkbox(checked = true, onCheckedChange = {})
+        Checkbox(checked = check, onCheckedChange = onCheckedChange)
 
         Column {
             Row(
@@ -181,19 +253,26 @@ private fun ItemWidget() {
 
             Row(Modifier.fillMaxWidth(0.9f)) {
                 Text(
-                    text = "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است",
+                    text = title,
                     fontSize = 12.sp
                 )
             }
         }
-        Icon(imageVector = Icons.Outlined.MoreVert, contentDescription = "", tint = PR_PURPLE)
+        Icon(
+            imageVector = Icons.Outlined.Delete,
+            contentDescription = "",
+            tint = PR_PURPLE,
+            modifier = Modifier.clickable { onRemove() })
 
 
     }
 }
 
 @Composable
-private fun InfoSection() {
+private fun InfoSection(items: List<ItemDataClass>) {
+    val totalChecked = items.count { it.isCheck }
+    val totalUnChecked = items.count { !it.isCheck }
+
     Row(Modifier.fillMaxWidth()) {
         Column(
             Modifier
@@ -218,7 +297,7 @@ private fun InfoSection() {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = "انجام شده")
-                Text(text = "10", fontSize = 15.sp)
+                Text(text = totalChecked.toString(), fontSize = 15.sp)
             }
 
         }
@@ -245,7 +324,7 @@ private fun InfoSection() {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = "انجام نشده")
-                Text(text = "10", fontSize = 15.sp)
+                Text(text = totalUnChecked.toString(), fontSize = 15.sp)
             }
 
         }
