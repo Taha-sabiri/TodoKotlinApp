@@ -6,6 +6,7 @@ import PR_LIGHT_ORANGE
 import PR_LIGHT_PURPLE
 import PR_ORANGE
 import PR_PURPLE
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,6 +67,7 @@ import com.example.todolist.data.ItemDataClass
 import com.example.todolist.data.ItemRepository
 import com.example.todolist.ui.ItemViewModel
 
+@SuppressLint("Range")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeView(navController: NavController, repository: ItemRepository) {
@@ -118,6 +120,7 @@ fun HomeView(navController: NavController, repository: ItemRepository) {
                         shape = RoundedCornerShape(10.dp),
                         onClick = {
                             viewModel.insert(ItemDataClass(title = titleInput))
+                            showBottomSheet=false
                         }) {
                         Text("افزودن")
                     }
@@ -159,12 +162,33 @@ fun HomeView(navController: NavController, repository: ItemRepository) {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items.forEachIndexed() { index, item ->
-                            ItemWidget(item.title, item.isCheck , onRemove = {viewModel.delete(item)} , onCheckedChange = { isChecked ->
-                                viewModel.update(item.copy(isCheck = isChecked))
+                     if (items.isNotEmpty()){
+                         items.forEachIndexed() { index, item ->
+                             ItemWidget(item.title, item.isCheck , onRemove = {viewModel.delete(item)} , onCheckedChange = { isChecked ->
+                                 viewModel.update(item.copy(isCheck = isChecked))
 
-                            })
-                        }
+                             })
+                         }
+                     }else{
+                         Column(
+                             Modifier
+                                 .fillMaxHeight().fillMaxWidth(),
+                             verticalArrangement = Arrangement.Center,
+                             horizontalAlignment = Alignment.CenterHorizontally
+                         ){
+
+                             Image(
+                                 painter = painterResource(id = R.drawable.not_found),
+                                 contentDescription = "",
+                                 Modifier
+                                     .size(150.dp).padding(vertical = 10.dp)
+                             )
+
+                             Text(text = "آیتمی وجود ندارد" , color = PR_PURPLE)
+                             
+                         }
+                        
+                     }
 
 
                         Spacer(modifier = Modifier.height(200.dp))
@@ -341,7 +365,7 @@ private fun HeaderSection() {
                 fontWeight = FontWeight.Black,
                 fontSize = 18.sp
             )
-            Text(text = "برنامتو با ما بچین !!")
+            Text(text = "برنامتو با من بچین !!")
             Spacer(modifier = Modifier.height(15.dp))
 
         }
